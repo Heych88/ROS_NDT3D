@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<launch>
+  <node name="ndt_node" pkg="norm_dist_tran_3d_node" type="norm_dist_tran_3d_exe" />
+</launch>
