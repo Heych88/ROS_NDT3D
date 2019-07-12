@@ -1,7 +1,8 @@
 #ifndef NDT3D_H
 #define NDT3D_H
 
-#include "../src/Eigen3/Dense"
+#include "../src/Eigen/Dense"
+#include <../src/Eigen/MatrixFunctions>
 #include <vector>
 
 using Eigen::MatrixXd;
@@ -12,7 +13,7 @@ public:
   /**
   * Constructor.
   */
-  NDT3D(VectorXd &pose);
+  NDT3D(VectorXd &pose, const float covC);
 
   /**
   * Destructor.
@@ -31,16 +32,30 @@ private:
   float pdfNormConstC;
 
   /*
-  * Calculates the mean vector q
+  * Calculates the mean of vector q
   * Equation 2 of paper.
+  * @param: ptsX => A matrix of cell points that contain and NDT cell.
+  * @return: mean of the cell points.
   */
-  float CalcMeanVectorQ(VectorXd &ptsX);
+  VectorXd CalcMeanVectorQ(MatrixXd &ptsX);
+
+  /*
+  * Calculates the covariance of the NDT cell.
+  * Equation 3 of paper.
+  * @param: ptsX => A vetor of points that lie within a NDT cell.
+  * @param: meanQ => mean of the cell points.
+  * @return: covariance matrix of the cell points.
+  */
+  MatrixXd CalcCovarianceC(MatrixXd &ptsX, VectorXd &meanQ);
 
   /*
   * Probability density function
   * Equation 4 of paper.
+  * @param: ptsX => A vetor of points that lie within a NDT cell.
+  * @param: meanQ => mean of the cell points.
+  * @param: cov => covariance matrix of the cell points.
   */
-  VectorXd CalcProbDensFunc(VectorXd &meanQ, MatrixXd &covC);
+  MatrixXd CalcProbDensFunc(VectorXd &ptX, VectorXd &meanQ, MatrixXd &cov);
 
 };
 

@@ -6,14 +6,13 @@ using Eigen::VectorXd;
 using Eigen::MatrixXd;
 using std::vector;
 
-NDT3D::NDT3D(VectorXd& pose)
+NDT3D::NDT3D(VectorXd& pose, const float covC)
 {
-  if(pose.size() != 3)
-    throw std::runtime_error("'pose' incorrect size. Must contain 3 elements.");
+  if(pose.size() != 4) // (x, y, z, heading)
+    throw std::runtime_error("'pose' incorrect size. Must contain 4 elements.");
 
   robotPose << pose;
-
-  pdfNormConstC = 1.0;
+  pdfNormConstC = covC; // normalising constant C
 }
 
 NDT3D::~NDT3D() {}
@@ -33,26 +32,62 @@ VectorXd NDT3D::CalculateNDT(std::vector<std::vector<int>> &ptsCloud)
 
 
 /*
-* Calculates the mean vector q
+* Calculates the mean of vector q
 * Equation 2 of paper.
+* @param: ptsX => A matrix of cell points that contain and NDT cell.
+* @return: mean of the cell points.
 */
-float NDT3D::CalcMeanVectorQ(VectorXd &ptsX)
+VectorXd NDT3D::CalcMeanVectorQ(MatrixXd &ptsX)
 {
-  float mean;
-  for(int i=0; i < ptsX.size(); i++) {
-    mean = mean + ptsX[i];
+  VectorXd mean(4);
+  mean.fill(0.0);
+
+  for(int i=0; i < ptsX.cols(); i++) {
+    mean(0) += ptsX(0,i);
+    mean(1) += ptsX(1,i);
+    mean(2) += ptsX(2,i);
+    mean(3) += ptsX(3,i);
   }
 
-  return mean + 1 / ptsX.size();
+  return mean * (1 / ptsX.cols());
+}
+
+
+/*
+* Calculates the covariance of the NDT cell.
+* Equation 3 of paper.
+* @param: ptsX => A vetor of points that lie within a NDT cell.
+* @param: meanQ => mean of the cell points.
+* @return: covariance matrix of the cell points.
+*/
+MatrixXd NDT3D::CalcCovarianceC(MatrixXd &ptsX, VectorXd &meanQ)
+{
+  MatrixXd covariance(4,4);
+  for(int i=0; i < ptsX.cols(); i++) {
+    VectorXd pt(4);
+
+    pt(0) = ptsX(0,i) - meanQ(0);
+    pt(1) = ptsX(1,i) - meanQ(1);
+    pt(2) = ptsX(2,i) - meanQ(2);
+    pt(3) = ptsX(3,i) - meanQ(3);
+
+    covariance += pt * pt.transpose();
+  }
+
+  return covariance * (1 / (ptsX.size() - 1));
 }
 
 
 /*
 * Probability density function
 * Equation 4 of paper.
+* @param: ptsX => A vetor of points that lie within a NDT cell.
+* @param: meanQ => mean of the cell points.
+* @param: cov => covariance matrix of the cell points.
 */
-VectorXd NDT3D::CalcProbDensFunc(VectorXd &meanQ, MatrixXd &covC)
+MatrixXd NDT3D::CalcProbDensFunc(VectorXd &ptX, VectorXd &meanQ, MatrixXd &cov)
 {
-
-  return robotPose;
+  VectorXd vect = ptX - meanQ;
+  MatrixXd expon = -(vect.transpose() * cov.inverse() * vect)/2;
+  return 1/pdfNormConstC * expon.exp();
 }
